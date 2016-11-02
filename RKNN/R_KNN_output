@@ -1,0 +1,354 @@
+############# Output for KNN Model ######################################################
+
+R version 3.3.1 (2016-06-21) -- "Bug in Your Hair"
+Copyright (C) 2016 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> install.packages('class')
+--- Please select a CRAN mirror for use in this session ---
+HTTPS CRAN mirror 
+
+ 1: 0-Cloud [https]                 2: Algeria [https]              
+ 3: Australia (Melbourne) [https]   4: Australia (Perth) [https]    
+ 5: Austria [https]                 6: Belgium (Ghent) [https]      
+ 7: Brazil (RJ) [https]             8: Brazil (SP 1) [https]        
+ 9: Bulgaria [https]               10: Canada (MB) [https]          
+11: Chile [https]                  12: China (Beijing) [https]      
+13: China (Hefei) [https]          14: Colombia (Cali) [https]      
+15: Czech Republic [https]         16: Denmark [https]              
+17: France (Lyon 1) [https]        18: France (Lyon 2) [https]      
+19: France (Marseille) [https]     20: France (Montpellier) [https] 
+21: France (Paris 2) [https]       22: Germany (Falkenstein) [https]
+23: Germany (Münster) [https]      24: Iceland [https]              
+25: India [https]                  26: Ireland [https]              
+27: Italy (Padua) [https]          28: Japan (Tokyo) [https]        
+29: Malaysia [https]               30: Mexico (Mexico City) [https] 
+31: New Zealand [https]            32: Norway [https]               
+33: Philippines [https]            34: Russia (Moscow) [https]      
+35: Serbia [https]                 36: Spain (A Coruña) [https]     
+37: Spain (Madrid) [https]         38: Switzerland [https]          
+39: Taiwan (Chungli) [https]       40: Turkey (Denizli) [https]     
+41: UK (Bristol) [https]           42: UK (Cambridge) [https]       
+43: UK (London 1) [https]          44: USA (CA 1) [https]           
+45: USA (IA) [https]               46: USA (IN) [https]             
+47: USA (KS) [https]               48: USA (MI 1) [https]           
+49: USA (TN) [https]               50: USA (TX) [https]             
+51: USA (WA) [https]               52: (HTTP mirrors)               
+
+
+Selection: 49
+trying URL 'https://mirrors.nics.utk.edu/cran/src/contrib/class_7.3-14.tar.gz'
+Content type 'application/x-gzip' length 19726 bytes (19 KB)
+==================================================
+downloaded 19 KB
+
+* installing *source* package ‘class’ ...
+** package ‘class’ successfully unpacked and MD5 sums checked
+** libs
+gcc -std=gnu99 -I/home/smita/anaconda3/lib/R/include -DNDEBUG  -I/home/smita/anaconda3/include    -fpic  -I/home/smita/anaconda3/include  -c class.c -o class.o
+gcc -std=gnu99 -shared -L/home/smita/anaconda3/lib/R/lib -L/home/smita/anaconda3/lib -lgfortran -o class.so class.o -L/home/smita/anaconda3/lib/R/lib -lR
+installing to /home/smita/anaconda3/lib/R/library/class/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded
+* DONE (class)
+
+The downloaded source packages are in
+	‘/tmp/RtmphY6eQK/downloaded_packages’
+Updating HTML index of packages in '.Library'
+Making 'packages.html' ... done
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(class)
+> getwd()
+[1] "/home/smita"
+> setwd("/home/smita/RKNN/")
+> trainPath <- "trainKnn.csv"
+> testPath <- "testKnn.csv"
+> train = read.csv(trainPath)
+> test  = read.csv(testPath)
+> cat("loaded data in train and test \n")
+loaded data in train and test 
+> ##############################################################
+> ## feature Engineering with R
+> ##############################################################
+> ## 1. click and book rate for hotel_cluster/srch_destionation_id
+> ## Click and book rate of hotel_cluster per serch_estination_id
+> ##############################################################
+> data1 = select(train, user_id, is_booking, srch_destination_id, hotel_cluster)
+> dest_cluster = group_by(train, srch_destination_id, hotel_cluster)
+> data.destn.clust <- summarize(dest_cluster,click=length(is_booking[is_booking==0]), book = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("srch_destination_id","hotel_cluster"))
+> ## for test 
+> test <- merge(test, data.destn.clust, by=c("srch_destination_id","hotel_cluster"), all.x = TRUE)
+> 
+> rm(data1, dest_cluster, data.destn.clust) 
+> data1 = select(train, user_id, is_booking, srch_destination_id)
+> dest_cluster = group_by(train, srch_destination_id)
+> data.destn.clust <- summarize(dest_cluster,total_click=length(is_booking[is_booking==0]), total_book = sum(is_booking))
+> train <- merge(train, data.destn.clust, by="srch_destination_id")
+> test <- merge(test, data.destn.clust, by="srch_destination_id", all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust) 
+> train$clickRate <- round(train$click/train$total_click,3)
+> train$bookRate <- round(train$book/train$total_click,3)
+> test$clickRate <- round(test$click/test$total_click,3)
+> test$bookRate <- round(test$book/test$total_click,3)
+> cat("Step 1: 5% \n")
+Step 1: 5% 
+> ## 2. click and book rate for hotel_country
+> ## Click and book rate of hotel_cluster per (hotel country, hotel_market)
+> ##############################################################
+> data1 = select(train, user_id, hotel_country, hotel_market, hotel_cluster, is_booking)
+> dest_cluster = group_by(train, hotel_country, hotel_market, hotel_cluster)
+> data.destn.clust <- summarize(dest_cluster,clickPerM=length(is_booking[is_booking==0]), bookPerM = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("hotel_country", "hotel_market","hotel_cluster"))
+> test <- merge(test, data.destn.clust, by=c("hotel_country", "hotel_market","hotel_cluster"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust) 
+> data1 = select(train, user_id, hotel_country, hotel_market, is_booking)
+> dest_cluster = group_by(train, hotel_country, hotel_market)
+> data.destn.clust <- summarize(dest_cluster,total_clickM=length(is_booking[is_booking==0]), total_bookM = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("hotel_country", "hotel_market"))
+> test <- merge(test, data.destn.clust, by=c("hotel_country", "hotel_market"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust)
+> train$clickMRate <- round(train$clickPerM/train$total_clickM,3)
+> train$bookMRate <- round(train$bookPerM/train$total_bookM,3)
+> test$clickMRate <- round(test$clickPerM/test$total_clickM,3)
+> test$bookMRate <- round(test$bookPerM/test$total_bookM,3)
+> cat("step 2: 10% \n")
+step 2: 10% 
+> ## 3. click and book rate for hotel_country
+> ## Click and book rate of hotel_cluster per (hotel country)
+> ##############################################################
+> data1 = select(train, hotel_country, hotel_cluster, is_booking)
+> dest_cluster = group_by(train, hotel_country, hotel_cluster)
+> data.destn.clust <- summarize(dest_cluster,clickPerHC=length(is_booking[is_booking==0]), bookPerHC = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("hotel_country", "hotel_cluster"))
+> test <- merge(test, data.destn.clust, by=c("hotel_country", "hotel_cluster"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust)
+> data1 = select(train, user_id, hotel_country, is_booking)
+> dest_cluster = group_by(train, hotel_country)
+> data.destn.clust <- summarize(dest_cluster,total_clickHC=length(is_booking[is_booking==0]), total_bookHC = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("hotel_country"))
+> test <- merge(test, data.destn.clust, by=c("hotel_country"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust)
+> train$clickHCRate <- round(train$clickPerHC/train$total_clickHC,3)
+> train$bookHCRate <- round(train$bookPerHC/train$total_bookHC,3)
+> test$clickHCRate <- round(test$clickPerHC/test$total_clickHC,3)
+> test$bookHCRate <- round(test$bookPerHC/test$total_bookHC,3)
+> cat("step3: 15%\n")
+step3: 15%
+> ## 4. Cluster poplarity based on user
+> ## Click and book rate of hotel_cluster per (user_location, user_location_region, user_location_city)
+> ##############################################################
+> data1 = select(train, user_location_city, user_location_region, user_location_country, hotel_cluster, is_booking)
+> dest_cluster = group_by(train, user_location_city, user_location_region, user_location_country, hotel_cluster)
+> data.destn.clust <- summarize(dest_cluster,clickPerU=length(is_booking[is_booking==0]), bookPerU = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("user_location_city", "user_location_region", "user_location_country","hotel_cluster"))
+> test <- merge(test, data.destn.clust, by=c("user_location_city", "user_location_region", "user_location_country","hotel_cluster"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust) 
+> data1 = select(train, user_location_city, user_location_region, user_location_country, is_booking)
+> dest_cluster = group_by(train, user_location_city, user_location_region, user_location_country)
+> data.destn.clust <- summarize(dest_cluster,total_clickU=length(is_booking[is_booking==0]), total_bookU = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("user_location_city", "user_location_region", "user_location_country"))
+> test <- merge(test, data.destn.clust, by=c("user_location_city", "user_location_region", "user_location_country"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust) 
+> train$clickURate <- round(train$clickPerU/train$total_clickU,3)
+> train$bookURate <- round(train$bookPerU/train$total_bookU,3)
+> 
+> test$clickURate <- round(test$clickPerU/test$total_clickU,3)
+> test$bookURate <- round(test$bookPerU/test$total_bookU,3)
+> cat("step4 : 20% \n")
+step4 : 20% 
+> ## 5. Cluster poplarity based on user
+> ## Click and book rate of hotel_cluster per (user_location_region, user_location_country)
+> ##############################################################
+> data1 = select(train, user_location_region, user_location_country, hotel_cluster, is_booking)
+> dest_cluster = group_by(train, user_location_region, user_location_country, hotel_cluster)
+> data.destn.clust <- summarize(dest_cluster,clickPerUCR=length(is_booking[is_booking==0]), bookPerUCR = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("user_location_region", "user_location_country","hotel_cluster"))
+> test <- merge(test, data.destn.clust, by=c("user_location_region", "user_location_country","hotel_cluster"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust) 
+> data1 = select(train, user_location_region, user_location_country, hotel_cluster, is_booking)
+> dest_cluster = group_by(train, user_location_region, user_location_country)
+> data.destn.clust <- summarize(dest_cluster,total_clickUCR=length(is_booking[is_booking==0]), total_bookUCR = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("user_location_region", "user_location_country"))
+> test <- merge(test, data.destn.clust, by=c("user_location_region", "user_location_country"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust) 
+> train$clickUCRRate <- round(train$clickPerUCR/train$total_clickUCR,3)
+> train$bookUCRRate <- round(train$bookPerUCR/train$total_bookUCR,3)
+> 
+> test$clickUCRRate <- round(test$clickPerUCR/test$total_clickUCR,3)
+> test$bookUCRRate <- round(test$bookPerUCR/test$total_bookUCR,3)
+> cat("step 5: 25% \n")
+step 5: 25% 
+> ## 6. Cluster poplarity based on user
+> ## Click and book rate of hotel_cluster per (user_location_country)
+> ##############################################################
+> data1 = select(train, user_location_country, hotel_cluster, is_booking)
+> dest_cluster = group_by(train, user_location_country, hotel_cluster)
+> data.destn.clust <- summarize(dest_cluster,clickPerUC=length(is_booking[is_booking==0]), bookPerUC = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("user_location_country","hotel_cluster"))
+> test <- merge(test, data.destn.clust, by=c("user_location_country","hotel_cluster"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust) 
+> data1 = select(train, user_location_country, hotel_cluster, is_booking)
+> dest_cluster = group_by(train, user_location_country)
+> data.destn.clust <- summarize(dest_cluster,total_clickUC=length(is_booking[is_booking==0]), total_bookUC = sum(is_booking))
+> train <- merge(train, data.destn.clust, by=c("user_location_country"))
+> test <- merge(test, data.destn.clust, by=c("user_location_country"), all.x = TRUE)
+> rm(data1, dest_cluster, data.destn.clust)
+> train$clickUCRate <- round(train$clickPerUC/train$total_clickUC,3)
+> train$bookUCRate <- round(train$bookPerUC/train$total_bookUC,3)
+> 
+> test$clickUCRate <- round(test$clickPerUC/test$total_clickUC,3)
+> test$bookUCRate <- round(test$bookPerUC/test$total_bookUC,3)
+> cat("step 6: 30%\n")
+step 6: 30%
+> ##############################################################
+> ##                     KNN Model
+> ##############################################################
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> ## KNN Data Preparation
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> 
+> columnTrain = colnames(train)
+> selectKNN = grep('Rate', columnTrain)
+> train.sample = select(train, selectKNN)
+> 
+> columnTrain = colnames(test)
+> selectKNN = grep('Rate', columnTrain)
+> test.sample = select(test, selectKNN)
+> 
+> cat("data preparation for KNN \n")
+data preparation for KNN 
+> colnames(train.sample)
+ [1] "clickRate"    "bookRate"     "clickMRate"   "bookMRate"    "clickHCRate" 
+ [6] "bookHCRate"   "clickURate"   "bookURate"    "clickUCRRate" "bookUCRRate" 
+[11] "clickUCRate"  "bookUCRate"  
+> colnames(test.sample)
+ [1] "clickRate"    "bookRate"     "clickMRate"   "bookMRate"    "clickHCRate" 
+ [6] "bookHCRate"   "clickURate"   "bookURate"    "clickUCRRate" "bookUCRRate" 
+[11] "clickUCRate"  "bookUCRate"  
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> ## Handling NAs, NAN, INF, and Zero before performing KNN
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> # Handle NA : 99
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> train.sample[is.na(train.sample)] <- 99
+> test.sample[is.na(test.sample)] <- 99
+> cat("handleed NA \n")
+handleed NA 
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> # Handle Zero: 88
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> 
+> handleZero =  function(df) {
++   colcnt = ncol(df)  
++   for(i in names(df)){
++     if (i < colcnt){
++       df[[i]] <-  sapply(df[[i]], function(x) { if (x == 0 || x == '0') { x <- 88} else {x = x} })
++     }
++   }  
++   return(df)
++ }
+> train.sample = handleZero(train.sample)
+> test.sample = handleZero(test.sample)
+> cat("handled Zero \n")
+handled Zero 
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> # Add target column in Train and test sampel dataset
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> 
+> train.sample = cbind(train.sample, train$hotel_cluster)
+> test.sample = cbind(test.sample, test$hotel_cluster)
+> colnames(train.sample)[13] <- "hotel_cluster"
+> colnames(test.sample)[13] <- "hotel_cluster"
+> colnames(train.sample)
+ [1] "clickRate"     "bookRate"      "clickMRate"    "bookMRate"    
+ [5] "clickHCRate"   "bookHCRate"    "clickURate"    "bookURate"    
+ [9] "clickUCRRate"  "bookUCRRate"   "clickUCRate"   "bookUCRate"   
+[13] "hotel_cluster"
+> colnames(test.sample)
+ [1] "clickRate"     "bookRate"      "clickMRate"    "bookMRate"    
+ [5] "clickHCRate"   "bookHCRate"    "clickURate"    "bookURate"    
+ [9] "clickUCRRate"  "bookUCRRate"   "clickUCRate"   "bookUCRate"   
+[13] "hotel_cluster"
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> ## Data Preparation for Model
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> 
+> trainPredictors = train.sample[, -13]
+> trainTarget = train.sample[, 13]
+> testPredictors = test.sample[, -13]
+> testTarget = test.sample[, 13]
+> rm(train, test)
+> cat("added target \n")
+added target 
+> library(data.table)
+data.table 1.9.6  For help type ?data.table or https://github.com/Rdatatable/data.table/wiki
+The fastest way to learn (by data.table authors): https://www.datacamp.com/courses/data-analysis-the-data-table-way
+------------------------------------------------------------------------------
+data.table + dplyr code now lives in dtplyr.
+Please library(dtplyr)!
+------------------------------------------------------------------------------
+
+Attaching package: ‘data.table’
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, last
+
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> # Deal with inf 
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> DT <- data.table(trainPredictors)
+> invisible(lapply(names(DT),function(.name) set(DT, which(is.infinite(DT[[.name]])), j = .name,value = 77)))
+> trainPredictors = DT
+> 
+> DT <- data.table(testPredictors)
+> invisible(lapply(names(DT),function(.name) set(DT, which(is.infinite(DT[[.name]])), j = .name,value = 77)))
+> testPredictors = DT
+> cat("dealt with Inf \n")
+dealt with Inf 
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> ## Use Knn from the librarry class to make the prediction
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> 
+> prediction = knn(trainPredictors, testPredictors, trainTarget, k=5)
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> # Accuracy
+> #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> Accuracy = mean(prediction == testTarget)
+> 
+> Accuracy
+[1] 0.3588562
+> cat("DONE!\n")
+DONE!
